@@ -1,6 +1,7 @@
 from demoparser2 import DemoParser
 from flask import Flask, request, send_file, jsonify, send_from_directory
 import json
+import random
 
 app = Flask(__name__,
             static_url_path='', 
@@ -49,6 +50,24 @@ def twodimensional():
         <button onclick="forward()">Forward</button>
     </div>
     <script src="/static/js/2d.js"></script>
+</body>
+</html>
+'''
+
+@app.route('/app/positions')
+def heatmap():
+    return '''
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Heatmap</title>
+</head>
+<body>
+    <canvas id="gameCanvas" width="800" height="800" style="background: url('/static/img/de_vertigo_radar.png'); background-size: cover;"></canvas>
+    <p id="colors"></p>
+    <script type="module" src="/static/js/heatmap.js"></script>
 </body>
 </html>
 '''
@@ -110,6 +129,21 @@ def grenadedata(round):
 
     return json_data
 
+@app.route('/app/heatmap/posdata/<round>')
+def heatposdata(round):
+    parser = DemoParser("demos/1-a415ce39-45bc-4893-a9f9-45bb5806627c-1-1.dem")
+
+    json_str = parser.parse_event(event_name="round_prestart").to_json(orient="index")
+    data = json.loads(json_str)
+
+    df = parser.parse_ticks(["X", "Y", "player_color", "team_num"], ticks=list(range(data[round]["tick"], data[str(int(round)+1)]["tick"])))
+    result = {}
+    add = 0
+    for tick, group in df.groupby('tick'):
+        for index, row in group.iterrows():
+            add += 1
+            result[add] = {'x': row['X'], 'y': row['Y'], 'name': row['name'], 'color': row["player_color"], 'team': row["team_num"]}
+    return jsonify(result)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8080, debug=True)
